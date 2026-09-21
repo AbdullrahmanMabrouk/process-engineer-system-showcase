@@ -139,18 +139,8 @@ clutter. It is not.
 
 ## Licence
 
-Not yet set.
+All rights reserved - see [LICENSE](LICENSE).
 
-<!-- TODO(you): this is the one thing I did not decide for you. The code was
-     written as work product for an employer, who most likely owns the
-     copyright regardless of whose hands were on the keyboard - so granting an
-     MIT licence may not be yours to grant. Options, roughly in order of
-     safety:
-
-       1. Leave it unlicensed and add a line: "Shared for portfolio review.
-          All rights reserved." Recruiters read code under these terms all the
-          time; nobody expects to fork it.
-       2. Ask your employer for written sign-off, then add MIT.
-
-     I did not add a LICENSE file, because asserting a licence you cannot grant
-     is worse than having none. -->
+This repository is published for portfolio review only. The code is a sanitised
+extract of a private production system developed as work product; no reuse
+rights are granted. Read it, ask me about it - but it is not yours to fork.
