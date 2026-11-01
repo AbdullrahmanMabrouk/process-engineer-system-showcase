@@ -2,6 +2,8 @@
 
 Fourteen process data sheets. One renderer.
 
+![Fourteen hand-built forms versus fourteen schemas through one engine](../assets/diagram-forms-engine.svg)
+
 ## What the forms actually look like
 
 A process data sheet is not a tidy list of fields. The paper originals were
@@ -20,6 +22,11 @@ designed by the people who ran the lines, and they look like it:
   is how the paper form did it and the engineers wanted it kept.
 - **The QC log** is a flat row. One submission is one day's line in a
   ledger, not a document.
+
+![The Stranding cage grid](../assets/shot-cage-grid.png)
+
+*Stranding, as the renderer emits it. Synthetic data - see
+[the UI gallery](../assets/ui-gallery.html).*
 
 These are genuinely different documents. The first two departments were built
 as two separate forms, which is the obvious thing to do.
@@ -103,6 +110,12 @@ The payoff is concrete. `qc_log_str`, the simplest schema in the file, is
 header fields and `blocks: []`. For those twenty lines it gets work-order
 autofill, arrow-key navigation, drafts, printing, load-to-edit and full record
 history - because those are properties of the engine, not of the form.
+
+![A CV extruder zone matrix with variance colouring](../assets/shot-zone-variance.png)
+
+*A `zoneMatrixBlock_` with `varianceThreshold: 5`. The same colouring function
+runs on the live form, the record list and the printed sheet, so an engineer
+reading a printout sees exactly what the screen showed.*
 
 ## The second generalisation: roles
 

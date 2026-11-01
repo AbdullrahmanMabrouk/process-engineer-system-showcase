@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 580" width="980" height="580" role="img" aria-label="Request path: the browser calls the Worker gateway, which either answers from D1 in about 0.05 seconds or forwards to a frozen Apps Script deployment in 3 to 18 seconds.">
+  <style>
+    .bg   { fill: #faf7f2; }
+    .card { fill: #ffffff; stroke: #d9d2c7; stroke-width: 1.5; rx: 10; }
+    .navy { fill: #0d1b2a; }
+    .t    { font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; fill: #231f1b; }
+    .h    { font-family: "Barlow Semi Condensed", "Segoe UI Semibold", system-ui, sans-serif; font-weight: 800; letter-spacing: .04em; }
+    .lbl  { font-size: 11px; fill: #6b645b; letter-spacing: .07em; text-transform: uppercase; font-weight: 700; }
+    .sub  { font-size: 12.5px; fill: #6b645b; }
+    .big  { font-size: 15.5px; font-weight: 700; }
+    .fast { fill: #1b7f4b; }
+    .slow { fill: #b3341f; }
+    .wire { stroke: #9c948a; stroke-width: 1.8; fill: none; }
+    .wirefast { stroke: #1b7f4b; stroke-width: 2.6; fill: none; }
+    .wireslow { stroke: #b3341f; stroke-width: 2.2; fill: none; stroke-dasharray: 7 5; }
+    .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 11.5px; }
+  </style>
+  <defs>
+    <marker id="aG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" style="fill:#1b7f4b"/>
+    </marker>
+    <marker id="aR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" style="fill:#b3341f"/>
+    </marker>
+    <marker id="aN" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" style="fill:#9c948a"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="980" height="580"/>
+  <text class="t h" x="34" y="42" font-size="19">THE STRANGLER SEAM</text>
+  <text class="t sub" x="34" y="64">Every call enters the same door. The registry decides who answers it.</text>
+
+  <!-- browser -->
+  <rect class="card" x="34" y="98" width="196" height="104"/>
+  <text class="t lbl" x="50" y="124">Browser</text>
+  <text class="t big" x="50" y="150">Single page</text>
+  <text class="t sub" x="50" y="170">vanilla JS + Tailwind</text>
+  <text class="t mono" x="50" y="190" style="fill:#6b645b">google.script.run...</text>
+
+  <path class="wire" marker-end="url(#aN)" d="M230 150 H306"/>
+  <text class="t sub" x="238" y="142" font-size="11">fetch</text>
+
+  <!-- shim -->
+  <rect class="card" x="306" y="98" width="166" height="104"/>
+  <text class="t lbl" x="322" y="124">api-shim.js</text>
+  <text class="t big" x="322" y="150">267 lines</text>
+  <text class="t sub" x="322" y="170">re-implements the</text>
+  <text class="t sub" x="322" y="187">chainable RPC API</text>
+
+  <path class="wire" marker-end="url(#aN)" d="M472 150 H548"/>
+
+  <!-- worker -->
+  <rect class="navy" x="548" y="98" width="398" height="104" rx="10"/>
+  <text class="t lbl" x="568" y="124" style="fill:#b9b1a6">Cloudflare Worker</text>
+  <text class="t big" x="568" y="150" style="fill:#ffffff">const NATIVE = { ... }</text>
+  <text class="t sub" x="568" y="172" style="fill:#b9b1a6">149 entries. Listed here? Answer it.</text>
+  <text class="t sub" x="568" y="189" style="fill:#b9b1a6">Not listed? Forward it, unchanged.</text>
+
+  <!-- split -->
+  <path class="wirefast" marker-end="url(#aG)" d="M660 202 V250 Q660 262 648 262 H330 Q318 262 318 274 V300"/>
+  <path class="wireslow" marker-end="url(#aR)" d="M840 202 V250 Q840 262 852 262 H852 Q864 262 864 274 V300"/>
+
+  <!-- native -->
+  <rect class="card" x="150" y="300" width="340" height="128" stroke="#1b7f4b"/>
+  <text class="t lbl" x="168" y="326" style="fill:#1b7f4b">Answered at the edge</text>
+  <text class="t big" x="168" y="352">D1 (SQLite)</text>
+  <text class="t sub" x="168" y="372">facts, pds_records, schemas, sessions</text>
+  <text class="t h fast" x="168" y="408" font-size="25">~0.05s</text>
+
+  <!-- forwarded -->
+  <rect class="card" x="548" y="300" width="398" height="128" stroke="#b3341f"/>
+  <text class="t lbl" x="566" y="326" style="fill:#b3341f">Forwarded, for now</text>
+  <text class="t big" x="566" y="352">Frozen Apps Script deployment</text>
+  <text class="t sub" x="566" y="372">xlsx conversion, Drive writes, the long tail</text>
+  <text class="t h slow" x="566" y="408" font-size="25">3-18s</text>
+
+  <!-- fallback -->
+  <path class="wireslow" marker-end="url(#aR)" d="M320 428 V448 H690 V432"/>
+  <rect x="436" y="438" width="150" height="18" rx="4" style="fill:#faf7f2"/><text class="t mono" x="511" y="451" text-anchor="middle" style="fill:#b3341f">fallbackToAppsScript</text>
+
+  <!-- footer note -->
+  <rect x="34" y="480" width="912" height="66" rx="9" fill="#f1ece3" stroke="#e0d9ce"/>
+  <text class="t sub" x="52" y="506" font-weight="700" style="fill:#231f1b">No flag day.</text>
+  <text class="t sub" x="134" y="506">An endpoint moves the day its data and its config are both in D1. A native handler that</text>
+  <text class="t sub" x="52" y="526">finds it cannot answer throws, and the call forwards as though it had never been listed - so half-migrated is a normal state, not an outage.</text>
+</svg>

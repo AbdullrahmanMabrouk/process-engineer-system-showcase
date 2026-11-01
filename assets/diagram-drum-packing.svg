@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 500" width="980" height="500" role="img" aria-label="Dividing the annular volume of a drum by the wire cross-section assumes a perfectly filled annulus and overstates capacity by four over pi, about 27 percent. Counting turns keeps the pi over four factor.">
+  <style>
+    .bg   { fill: #faf7f2; }
+    .t    { font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; fill: #231f1b; }
+    .h    { font-family: "Barlow Semi Condensed", "Segoe UI Semibold", system-ui, sans-serif; font-weight: 800; letter-spacing: .04em; }
+    .lbl  { font-size: 11px; fill: #6b645b; letter-spacing: .07em; text-transform: uppercase; font-weight: 700; }
+    .sub  { font-size: 12.5px; fill: #6b645b; }
+    .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 13px; fill: #231f1b; }
+    .rule { stroke: #9c948a; stroke-width: 1.2; }
+    .wire { fill: #ffffff; stroke: #b08968; stroke-width: 1.6; }
+    .gap  { fill: #e8604c; opacity: .32; }
+    .flange { fill: #e7dfd2; stroke: #b7ab98; stroke-width: 1.8; }
+    .barrel { fill: #faf7f2; stroke: #b7ab98; stroke-width: 1.8; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="980" height="500"/>
+  <text class="t h" x="34" y="42" font-size="19">WHY A DRUM HOLDS 27% LESS THAN THE VOLUME SAYS</text>
+  <text class="t sub" x="34" y="64">Round wire in square packing cannot fill an annulus. The gaps are not a rounding error.</text>
+
+  <!-- LEFT: drum cross-section -->
+  <text class="t lbl" x="34" y="104">The drum, end on</text>
+  <g transform="translate(150,268)">
+    <circle class="flange" cx="0" cy="0" r="112"/>
+    <circle class="barrel" cx="0" cy="0" r="46"/>
+    <!-- annulus hint -->
+    <circle cx="0" cy="0" r="79" fill="none" stroke="#b08968" stroke-width="0.9" stroke-dasharray="4 4"/>
+    <!-- b -->
+    <line class="rule" x1="-112" y1="132" x2="112" y2="132"/>
+    <text class="t mono" x="-6" y="150">b</text>
+    <line class="rule" x1="-112" y1="124" x2="-112" y2="140"/>
+    <line class="rule" x1="112" y1="124" x2="112" y2="140"/>
+    <!-- c -->
+    <line class="rule" x1="-46" y1="-132" x2="46" y2="-132"/>
+    <text class="t mono" x="-6" y="-140">c</text>
+    <line class="rule" x1="-46" y1="-140" x2="-46" y2="-124"/>
+    <line class="rule" x1="46" y1="-140" x2="46" y2="-124"/>
+  </g>
+  <text class="t sub" x="60" y="442">b = flange dia &#160; c = barrel dia</text>
+  <text class="t sub" x="60" y="460">a = barrel width &#160; d = wire dia</text>
+
+  <!-- MIDDLE: packing zoom -->
+  <text class="t lbl" x="330" y="104">How turns actually sit</text>
+  <g transform="translate(330,126)">
+    <rect x="0" y="0" width="208" height="208" fill="#ffffff" stroke="#d9d2c7" stroke-width="1.5"/>
+    <!-- gaps behind -->
+    <g>
+      <!-- draw gap squares then wires on top -->
+      <g>
+        <rect x="4" y="4" width="200" height="200" class="gap"/>
+      </g>
+      <g>
+        <circle class="wire" cx="29" cy="29" r="25"/><circle class="wire" cx="79" cy="29" r="25"/>
+        <circle class="wire" cx="129" cy="29" r="25"/><circle class="wire" cx="179" cy="29" r="25"/>
+        <circle class="wire" cx="29" cy="79" r="25"/><circle class="wire" cx="79" cy="79" r="25"/>
+        <circle class="wire" cx="129" cy="79" r="25"/><circle class="wire" cx="179" cy="79" r="25"/>
+        <circle class="wire" cx="29" cy="129" r="25"/><circle class="wire" cx="79" cy="129" r="25"/>
+        <circle class="wire" cx="129" cy="129" r="25"/><circle class="wire" cx="179" cy="129" r="25"/>
+        <circle class="wire" cx="29" cy="179" r="25"/><circle class="wire" cx="79" cy="179" r="25"/>
+        <circle class="wire" cx="129" cy="179" r="25"/><circle class="wire" cx="179" cy="179" r="25"/>
+      </g>
+    </g>
+  </g>
+  <text class="t sub" x="330" y="356"><tspan style="fill:#b3341f" font-weight="700">21.5%</tspan> of the area is gap.</text>
+  <text class="t sub" x="330" y="376">A circle fills pi/4 of its square.</text>
+
+  <!-- RIGHT: the two routes -->
+  <text class="t lbl" x="586" y="104">Two ways to compute it</text>
+
+  <rect x="586" y="120" width="360" height="118" rx="9" fill="#fbeeea" stroke="#e8c3b8"/>
+  <text class="t sub" x="604" y="144" font-weight="700" style="fill:#b3341f">Divide volume by area - wrong</text>
+  <text class="t mono" x="604" y="170">annular volume</text>
+  <line class="rule" x1="604" y1="178" x2="716" y2="178"/>
+  <text class="t mono" x="604" y="196">wire cross-section</text>
+  <text class="t sub" x="604" y="222">The pi/4 cancels. Assumes a 100%-filled annulus.</text>
+
+  <rect x="586" y="252" width="360" height="130" rx="9" fill="#eaf4ee" stroke="#bcd9c8"/>
+  <text class="t sub" x="604" y="276" font-weight="700" style="fill:#1b7f4b">Count the turns - right</text>
+  <text class="t mono" x="604" y="302">turns = a/d</text>
+  <text class="t mono" x="604" y="322">layers = (b - c) / 2d</text>
+  <text class="t mono" x="604" y="342">length = (pi/4) &#183; a &#183; (b&#178; - c&#178;) / d&#178;</text>
+  <text class="t sub" x="604" y="366">The pi/4 survives, because the gaps are real.</text>
+
+  <rect x="586" y="396" width="360" height="44" rx="9" style="fill:#0d1b2a"/>
+  <text class="t sub" x="604" y="423" style="fill:#ffffff">Difference: <tspan font-weight="700">4/pi, about 27% overstated</tspan></text>
+</svg>

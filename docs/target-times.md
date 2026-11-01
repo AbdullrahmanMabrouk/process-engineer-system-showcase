@@ -6,8 +6,13 @@ Every plant needs that number. It sets the schedule, it sets what counts as a
 bad shift, and it is usually somebody's memory. The engine computes it from
 drum geometry, die schedules and line speeds, and shows its working.
 
-Code: [`src/server/Targets.js`](../src/server/Targets.js) (1,768 lines, shipped
+Code: [`src/engine/Targets.js`](../src/engine/Targets.js) (2,342 lines, shipped
 in full).
+
+![Target time trace](../assets/shot-target-trace.png)
+
+*Every constant shows where it came from, and a missing one is named rather
+than defaulted. Synthetic data.*
 
 ## Two modes, one model
 
@@ -74,8 +79,11 @@ How much wire fits on a drum? The obvious method: take the annular volume
 between the barrel and the flange, divide by the cross-sectional area of the
 wire.
 
-That is wrong by 27%, and the comment explaining why is my favourite thing in
-this project:
+That is wrong by 27%.
+
+![Why a drum holds 27 percent less than the volume says](../assets/diagram-drum-packing.svg)
+
+The comment explaining it is my favourite thing in this project:
 
 ```js
 /*  turns across the barrel width  = a / d

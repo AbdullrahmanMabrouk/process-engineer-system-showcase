@@ -3,7 +3,7 @@
  * -------------------------------------------------------------------
  * EXCERPT NOTICE
  * This file is an excerpt from the production server file (Code.js,
- * ~13k lines). It carries three of the fourteen form schemas plus the
+ * ~11,700 lines). It carries three of the fourteen form schemas plus the
  * helpers they are built from, which is enough to show the shape of the
  * thing. It is not runnable on its own.
  *

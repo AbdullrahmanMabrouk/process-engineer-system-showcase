@@ -313,9 +313,8 @@ function targetDrumCapacityM_(a, b, c, maxWeightKg, itemDiaMm, densityKgM3) {
  *  line's speed falls away steeply with wire size - across the tabulated
  *  span of one die schedule it can drop to a small fraction of its top-end
  *  value - so a straight line pushed past either end produces a confidently
- *  wrong number, and at the far end a negative one. The caller reports the
- *  range instead and the engineer can type a speed in, which manual mode
- *  already allows for any constant. */
+ *  wrong number, and at the far end a negative one. The caller reports the range instead and the engineer
+ *  can type a speed in, which manual mode already allows for any constant. */
 function targetInterpolate_(points, x) {
   const pts = (points || [])
     .filter(p => p && p.x !== null && p.x !== undefined && p.y !== null && p.y !== undefined)
@@ -539,9 +538,15 @@ function targetDrawingSpeed_(ctx) {
  *
  *  Returns null when the order has not run in that department yet, which is
  *  the normal case for a target being calculated before the job starts. */
+/** `deptName` may be one department or a list of them. Screening and
+ *  Armouring are one model but two labels in the operation map, so a single
+ *  string would silently drop half its runs. */
 function targetWipRun_(workOrder, deptName) {
   const wo = String(workOrder || '').trim().toLowerCase();
   if (!wo) return null;
+  const wantDepts = deptName
+    ? (Array.isArray(deptName) ? deptName : [deptName]).map(d => String(d))
+    : [];
 
   let months;
   try {
@@ -567,7 +572,7 @@ function targetWipRun_(workOrder, deptName) {
       if (String(row[idx.WO] || '').trim().toLowerCase() !== wo) continue;
       const oprCode = String(row[idx.OprCode] || '').trim().toUpperCase();
       const op = opMap[oprCode] || { name: '', dept: '' };
-      if (deptName && op.dept !== deptName) continue;
+      if (wantDepts.length && wantDepts.indexOf(op.dept) === -1) continue;
       const dateCell = row[idx.Date];
       const date = dateCell instanceof Date
         ? Utilities.formatDate(dateCell, Session.getScriptTimeZone(), 'yyyy-MM-dd')
@@ -688,6 +693,165 @@ function targetBleedRate_(machine, extruder, materialType) {
     };
   }
   return null;
+}
+
+/* ===================================================================
+ * SCREENING & ARMOURING GEOMETRY
+ * -------------------------------------------------------------------
+ * Laying a tape or a wire onto a cable is one calculation, whichever of the
+ * three machine families is doing it: the head turns, and every revolution
+ * drags the cable forward by one pitch. Line speed is rpm x pitch.
+ *
+ * For a WIRE CAGE the pitch is simply the lay length the TDS specifies.
+ *
+ * For a TAPE the pitch follows from the geometry. Wrap a tape of width W
+ * helically round a cylinder of diameter D at a helix angle alpha to the
+ * cable axis and the tape's own width spans the circumference as
+ * W = pi D cos(alpha), while the cable advances pitch = W / sin(alpha) per
+ * turn. The plant writes this two ways - its copper-tape sheet as
+ * rpm (W-O) / (1000 sqrt(1 - ((W-O)/pi D)^2)) and its steel-tape sheet as
+ * ACOS then SIN - which are the same equation, since sqrt(1-cos^2) IS sin.
+ * =================================================================== */
+
+/** The heads a screening or armouring line can carry, in the order they sit
+ *  along the line. Which of them a given line actually has comes from the
+ *  Screening > Heads table - this is only the vocabulary. */
+const TARGET_SC_HEADS_ = ['Head 1', 'Head 2', 'Head 3', 'Wire Cage', 'Wire Cage 2'];
+
+const TARGET_SC_ELEMENT_TYPES_ = ['Tape', 'Wire Cage'];
+
+/** A head is only laying material when its process is Taping. Stripping and
+ *  straight-through runs pass the cable through the same head without it
+ *  turning, so that head places no limit on the line - which is exactly what
+ *  the plant's sheets mean by zeroing the head and then taking MINIFS over
+ *  the values above zero. */
+const TARGET_SC_PROCESSES_ = ['Taping', 'Strip', 'Straight'];
+
+const TARGET_SC_APPLICATIONS_ = ['Overlap', 'Gap'];
+
+/** How far the cable advances per revolution of a taping head, in mm.
+ *
+ *  A tape laid with an OVERLAP advances by its width less what it laps back
+ *  onto the previous turn; one laid with a deliberate GAP advances by its
+ *  width plus that gap. That sign is the only difference between the plant's
+ *  copper-tape sheet (W - overlap) and its steel-tape sheet (W + gap), and it
+ *  is a property of the run, not of the machine - so it is an input, not a
+ *  branch on the machine code.
+ *
+ *  N tapes applied at one head sit side by side around the circumference and
+ *  so advance N times as far per turn. The plant's sheets only ever show one
+ *  tape per head and therefore never had to say this; the TDS does specify
+ *  two-tape heads ("2 X 30 X 0.2"), so the count is carried here and stated
+ *  in the trace rather than silently assumed to be one. */
+function targetScTapeAdvanceMm_(widthMm, pct, application, tapes) {
+  const w = targetNum_(widthMm);
+  if (w === null || w <= 0) return null;
+  const p = targetNum_(pct);
+  if (p === null) return null;
+  const n = targetNum_(tapes);
+  const count = (n === null || n < 1) ? 1 : n;
+  const gapped = String(application || '').trim().toLowerCase() === 'gap';
+  const adv = count * w * (gapped ? (1 + p / 100) : (1 - p / 100));
+  return adv > 0 ? adv : null;
+}
+
+/** Line speed from one taping head, plus the helix it implies.
+ *
+ *  Returns `longitudinal: true` when the advance per turn reaches the
+ *  circumference. At that point cos(alpha) is 1, the helix has flattened to a
+ *  straight line along the cable, and there is no helical relation between
+ *  rpm and speed at all - the tape is being applied longitudinally, which the
+ *  plant does do and lists as a direction. Pushing the formula past that point
+ *  divides by a sine of zero and then by the square root of a negative number,
+ *  so it is reported rather than computed (CLAUDE.md rule 4). */
+function targetScTapeSpeed_(rpm, advanceMm, diaMm) {
+  const r = targetNum_(rpm), a = targetNum_(advanceMm), d = targetNum_(diaMm);
+  if (r === null || a === null || d === null || d <= 0) return null;
+  const cosA = a / (Math.PI * d);
+  if (cosA >= 1) return { speed: null, longitudinal: true, alphaDeg: null, pitchMm: null };
+  const sinA = Math.sqrt(1 - cosA * cosA);
+  const pitchMm = a / sinA;
+  return {
+    speed: r * pitchMm / 1000,
+    longitudinal: false,
+    alphaDeg: Math.acos(cosA) * 180 / Math.PI,
+    pitchMm: pitchMm
+  };
+}
+
+/** Rows of the Screening > Heads table for one line. */
+function targetScHeadRows_(machine) {
+  if (!machine) return [];
+  let rows;
+  try {
+    rows = getSpecData('targets_sc', 'heads').rows;
+  } catch (e) { return []; }
+  return rows.filter(r => String(r.label).trim().toUpperCase() === String(machine).trim().toUpperCase());
+}
+
+/** The heads a line runs unless told otherwise - the same "flagged, else all
+ *  of them" rule Extrusion uses for its extruders. */
+function targetScDefaultHeads_(machine) {
+  const mine = targetScHeadRows_(machine);
+  if (!mine.length) return [];
+  const yes = v => /^(y|yes|true|1|x)$/i.test(String(v || '').trim());
+  const flagged = mine.filter(r => yes(r.values['Runs By Default']));
+  const use = flagged.length ? flagged : mine;
+  return use.map(r => String(r.values.Head || '').trim())
+    .filter(h => TARGET_SC_HEADS_.indexOf(h) > -1)
+    .filter((h, i, a) => a.indexOf(h) === i);
+}
+
+/** The element type the Heads table records for one head, or ''. */
+function targetScHeadType_(machine, head) {
+  const row = targetScHeadRows_(machine).find(r => String(r.values.Head || '').trim() === String(head).trim());
+  return row ? String(row.values['Element Type'] || '').trim() : '';
+}
+
+/** Whether a tape material is metallic, from Screening > Tape Material. */
+function targetScTapeClass_(tapeMaterial) {
+  const name = String(tapeMaterial || '').trim();
+  if (!name) return null;
+  let rows;
+  try {
+    rows = getSpecData('targets_sc', 'tapeMaterial').rows;
+  } catch (e) { return null; }
+  const row = rows.find(r => String(r.label).trim().toUpperCase() === name.toUpperCase());
+  const cls = row ? String(row.values.Class || '').trim() : '';
+  return cls || null;
+}
+
+/** The rpm one head turns at, and where that number came from.
+ *
+ *  A submitted PDS for this run wins - that is what the head actually did.
+ *  Otherwise the line's planned Max RPM from Screening > Heads, which is what
+ *  the plant's own sheets use. Either way the figure is then capped by the
+ *  class of tape on that head, because a metallic pad cannot be spun as fast
+ *  as a plastic one whatever the head is rated for. */
+function targetScHeadRpm_(machine, head, fields) {
+  const f = fields || {};
+  let value = targetNum_(f.rpm);
+  let source = value === null ? null : 'entered';
+
+  if (value === null) {
+    const row = targetScHeadRows_(machine).find(r => String(r.values.Head || '').trim() === String(head).trim());
+    const planned = row ? targetNum_(row.values['Max RPM']) : null;
+    if (planned !== null) { value = planned; source = 'Screening > Heads'; }
+  }
+  if (value === null) return { value: null, source: null, capped: false, cap: null, cls: null };
+
+  const cls = targetScTapeClass_(f.tapeMaterial);
+  let cap = null;
+  if (cls) {
+    let capRows;
+    try { capRows = getSpecData('targets_sc', 'rpmCap').rows; } catch (e) { capRows = []; }
+    const capRow = capRows.find(r => String(r.label).trim().toUpperCase() === cls.toUpperCase());
+    cap = capRow ? targetNum_(capRow.values['Max RPM']) : null;
+  }
+  if (cap !== null && cap < value) {
+    return { value: cap, source: source, capped: true, cap: cap, cls: cls };
+  }
+  return { value: value, source: source, capped: false, cap: cap, cls: cls };
 }
 
 /* ===================================================================
@@ -1201,6 +1365,230 @@ function targetModels_() {
             ? (v.runningTimeMin + v.takeupChangeMinPerKm) : null
         }
       ]
+    },
+
+    /* ================= SCREENING & ARMOURING ================= */
+    /* One model for both, and for all three machine families. What a line is
+     * made of - how many heads, which are taping heads and which are wire
+     * cages - is read from the Heads table rather than written into the code,
+     * so CT, CW, ST and the armouring drum twisters all run the same chain.
+     *
+     * The chain stops at running time on purpose. The plant's own sheet stops
+     * at line speed; changeover time will come from the WIP003 run log rather
+     * than from a drum-capacity calculation, so there is deliberately no
+     * take-up table here and the total is the running time alone. */
+    targets_sc: {
+      key: 'targets_sc',
+      title: 'Target Time - Screening & Armouring',
+      deptName: 'Screening & Armouring',
+      // The WIP003 operation map labels these runs under two separate
+      // departments; one model covers both, so it matches on either.
+      wipDepts: ['Screening', 'Armouring'],
+      specTabKey: 'targets_sc',
+
+      context: [
+        { key: 'machine', label: 'Machine (Line)', type: 'select', optionsSource: 'screeningMachines',
+          origin: O.WIP, originNote: 'The line this work order actually ran on, from WIP003.' },
+        { key: 'stage', label: 'Stage', type: 'select', options: ['Metallic Screen', 'Armouring'],
+          origin: O.WIP,
+          originNote: 'Which department the WIP003 operation code belongs to. Falls back to the machine ' +
+            'family (CT/CW screen, ST/DT armour) when the order has no run yet.' }
+      ],
+
+      inputs: [
+        // Which heads are running is a set, not a number, and each carries its
+        // own geometry - so this is the same multiselect + repeat pair
+        // Extrusion uses for its extruders.
+        { key: 'heads', label: 'Heads In Use', type: 'multiselect',
+          options: TARGET_SC_HEADS_,
+          origin: O.DATABASE, originNote: 'The heads this line carries (Screening > Heads).' },
+        {
+          key: 'byHead', label: 'Per Head', type: 'repeat', over: 'heads',
+          fields: [
+            { key: 'elementType', label: 'Element Type', type: 'select', options: TARGET_SC_ELEMENT_TYPES_,
+              origin: O.DATABASE, originNote: 'Screening > Heads.' },
+            { key: 'process', label: 'Process', type: 'select', options: TARGET_SC_PROCESSES_,
+              origin: O.PDS, originNote: 'A head that is stripping or running straight is not laying ' +
+                'material and places no limit on the line.' },
+            { key: 'diaBefore', label: 'Cable Dia Before (mm)', type: 'number', unit: 'mm',
+              origin: O.PDS, originNote: 'That tape block\'s Cable Dia (Before), actual with TDS fallback.' },
+            { key: 'tapeWidth', label: 'Tape Width (mm)', type: 'number', unit: 'mm',
+              origin: O.PDS, originNote: 'That tape block\'s Tape Width.' },
+            { key: 'noOfTapes', label: 'No. of Tapes', type: 'number', optional: true,
+              origin: O.PDS, help: 'Blank counts as one. Two tapes at one head advance twice as far per turn.' },
+            { key: 'application', label: 'Applied With', type: 'select', options: TARGET_SC_APPLICATIONS_,
+              origin: O.MANUAL,
+              help: 'Overlap subtracts from the tape width, a gap adds to it. Copper taping overlaps; ' +
+                'steel taping is usually gapped.' },
+            { key: 'overlapGapPct', label: 'Overlap / Gap %', type: 'number', unit: '%',
+              origin: O.PDS, originNote: 'That tape block\'s Overlap/Gap %.' },
+            { key: 'tapeMaterial', label: 'Tape Material', type: 'select',
+              optionsSource: 'screeningTapeMaterials', optional: true,
+              origin: O.PDS, help: 'Only used to cap the head\'s rpm when the pad is metallic.' },
+            { key: 'layLength', label: 'Lay Length (mm/rev)', type: 'number', unit: 'mm/rev', optional: true,
+              origin: O.PDS, help: 'Wire cages only - it IS the pitch, so no helix is derived.' },
+            { key: 'rpm', label: 'RPM', type: 'number', optional: true,
+              origin: O.PDS, help: 'Blank falls back to the line\'s planned Max RPM in Screening > Heads.' }
+          ]
+        }
+      ],
+
+      constants: [
+        { key: 'payoffMaxSpeed', label: 'Payoff max speed', unit: 'm/min',
+          tab: 'targets_sc', table: 'machine', rowFrom: 'machine', col: 'Payoff Max Speed (m/min)',
+          where: 'Screening > Machine', origin: O.DATABASE },
+        { key: 'takeupMaxSpeed', label: 'Take-up max speed', unit: 'm/min',
+          tab: 'targets_sc', table: 'machine', rowFrom: 'machine', col: 'Takeup Max Speed (m/min)',
+          where: 'Screening > Machine', origin: O.DATABASE }
+      ],
+
+      steps: [
+        {
+          key: 'headSpeed', label: 'Slowest head', unit: 'm/min', overridable: true,
+          formula: 'tape: rpm x (width -/+ overlap) / sin(alpha) / 1000, where cos(alpha) = ' +
+            '(width -/+ overlap) / (pi x dia).  wire cage: rpm x lay length / 1000',
+          fn: (v, ctx) => {
+            const machine = ctx.choice('machine', 'Machine');
+            const heads = ctx.params.heads || [];
+            if (!heads.length) {
+              ctx.missing.push('Heads In Use');
+              return null;
+            }
+            const bag = ctx.params.byHead || {};
+            const notes = [];
+            const limits = [];
+            let ok = true;
+
+            heads.forEach(head => {
+              const f = bag[head] || {};
+              const process = String(f.process || '').trim();
+              if (process && process.toLowerCase() !== 'taping') {
+                notes.push(head + ': ' + process + ', not laying');
+                return;
+              }
+              const type = String(f.elementType || '').trim().toLowerCase();
+              if (!type) {
+                ctx.missing.push('Element Type for ' + head);
+                ok = false;
+                return;
+              }
+              const rpmInfo = targetScHeadRpm_(machine, head, f);
+              if (rpmInfo.value === null) {
+                ctx.missing.push('RPM for ' + head + ', or a Max RPM for ' + (machine || '(no machine)') +
+                  ' / ' + head + ' (Screening > Heads)');
+                ok = false;
+                return;
+              }
+              const rpmTag = rpmInfo.value + ' rpm' +
+                (rpmInfo.capped ? ' (capped, ' + rpmInfo.cls + ')' : '') +
+                (rpmInfo.source === 'entered' ? '' : ' [planned]');
+
+              if (type === 'wire cage') {
+                const lay = targetNum_(f.layLength);
+                if (lay === null) {
+                  ctx.missing.push('Lay Length for ' + head);
+                  ok = false;
+                  return;
+                }
+                const speed = rpmInfo.value * lay / 1000;
+                limits.push({ name: head, speed: speed });
+                notes.push(head + ': ' + rpmTag + ' x ' + lay + ' mm/rev = ' + tgtRound_(speed, 2) + ' m/min');
+                return;
+              }
+
+              const width = targetNum_(f.tapeWidth);
+              const dia = targetNum_(f.diaBefore);
+              const pct = targetNum_(f.overlapGapPct);
+              if (width === null) { ctx.missing.push('Tape Width for ' + head); ok = false; }
+              if (dia === null) { ctx.missing.push('Cable Dia Before for ' + head); ok = false; }
+              if (pct === null) { ctx.missing.push('Overlap / Gap % for ' + head); ok = false; }
+              if (!String(f.application || '').trim()) {
+                ctx.missing.push('Applied With (overlap or gap) for ' + head);
+                ok = false;
+              }
+              if (width === null || dia === null || pct === null) return;
+
+              const advance = targetScTapeAdvanceMm_(width, pct, f.application, f.noOfTapes);
+              if (advance === null) {
+                ctx.missing.push('A workable tape width and overlap for ' + head +
+                  ' (the overlap leaves no advance per turn)');
+                ok = false;
+                return;
+              }
+              const r = targetScTapeSpeed_(rpmInfo.value, advance, dia);
+              if (!r) { ok = false; return; }
+              if (r.longitudinal) {
+                // Not an error and not a limit - a tape wider than the
+                // circumference is applied along the cable, not wrapped round
+                // it, so this head's rpm says nothing about line speed.
+                notes.push(head + ': ' + tgtRound_(advance, 1) + ' mm per turn exceeds the ' +
+                  tgtRound_(Math.PI * dia, 1) + ' mm circumference - applied longitudinally, no helical limit');
+                return;
+              }
+              limits.push({ name: head, speed: r.speed });
+              notes.push(head + ': ' + rpmTag + ', pitch ' + tgtRound_(r.pitchMm, 1) + ' mm at ' +
+                tgtRound_(r.alphaDeg, 1) + ' deg = ' + tgtRound_(r.speed, 2) + ' m/min');
+            });
+
+            ctx.scNotes = notes;
+            ctx.scLimits = limits;
+            if (!ok) return null;
+            if (!limits.length) {
+              ctx.missing.push('At least one head actually laying material');
+              return null;
+            }
+            const slowest = limits.reduce((a, b) => (b.speed < a.speed ? b : a));
+            ctx.scSlowestHead = slowest;
+            return slowest.speed;
+          },
+          noteFn: (v, ctx) => (ctx.scNotes && ctx.scNotes.length) ? ctx.scNotes.join('   |   ') : ''
+        },
+        {
+          key: 'lineSpeed', label: 'Line speed', unit: 'm/min', overridable: true,
+          formula: 'the slowest of every head laying material, the payoff and the take-up',
+          fn: (v, ctx) => {
+            // No head speed means the heads could not be evaluated, not that
+            // they place no limit. Falling through to the payoff and take-up
+            // caps would hand back a confident line speed that ignores the
+            // machine actually laying the material (CLAUDE.md rule 4).
+            if (v.headSpeed === null) return null;
+            const candidates = [
+              { name: (ctx.scSlowestHead && ctx.scSlowestHead.name) || 'Heads', speed: v.headSpeed }
+            ];
+            // The payoff and take-up caps are read the same way as any other
+            // constant, so a manual override beats the table - but a line
+            // whose caps are not on file yet still gets an answer from its
+            // heads alone, with the trace saying which limits were considered.
+            const payoff = ctx.constant('payoffMaxSpeed');
+            const takeup = ctx.constant('takeupMaxSpeed');
+            if (payoff !== null) candidates.push({ name: 'Payoff', speed: payoff });
+            if (takeup !== null) candidates.push({ name: 'Take-up', speed: takeup });
+            if (!candidates.length) return null;
+            const binding = candidates.reduce((a, b) => (b.speed < a.speed ? b : a));
+            ctx.scBinding = binding;
+            ctx.scConsidered = candidates;
+            return binding.speed;
+          },
+          noteFn: (v, ctx) => {
+            if (!ctx.scBinding) return '';
+            const all = (ctx.scConsidered || [])
+              .map(c => c.name + ' ' + tgtRound_(c.speed, 2)).join(', ');
+            return 'Limited by ' + ctx.scBinding.name + '. Considered: ' + all + ' m/min.';
+          }
+        },
+        {
+          key: 'runningTimeMin', label: 'Running time', unit: 'min/km', overridable: true,
+          formula: '1000 / line speed',
+          fn: v => v.lineSpeed ? (1000 / v.lineSpeed) : null
+        },
+        {
+          key: 'totalMinPerKm', label: 'Total target time', unit: 'min/km',
+          formula: 'running time',
+          note: 'Running time only. Changeover time is not added here - it is to come from the ' +
+            'WIP003 run log rather than from a drum-capacity calculation.',
+          fn: v => v.runningTimeMin
+        }
+      ]
     }
   };
 
@@ -1319,6 +1707,13 @@ function targetOptionSource_(name, params) {
     case 'drawingMachines': return getDailyReportMachines('Drawing');
     case 'strandingMachines': return getStrandMachineOptions();
     case 'extrusionMachines': return PDS_MACHINE_OPTIONS_.pds_extrusion;
+    // Screening and Armouring share one machine list because they share one
+    // department - the drum twisters are added because DT02/DT03/DT04 armour
+    // as well as lay up, and WIP003 will name them on an armouring run.
+    case 'screeningMachines':
+      return PDS_MACHINE_OPTIONS_.pds_screening_armouring.concat(
+        PDS_MACHINE_OPTIONS_.pds_assembly.filter(m => /armor|armour/i.test(m.label)));
+    case 'screeningTapeMaterials': return labelsOf('targets_sc', 'tapeMaterial');
     case 'drawingBobbins': return labelsOf('targets_dr', 'bobbin');
     case 'extrusionTakeups': return labelsOf('targets_ex', 'takeup');
     case 'extrusionCompounds': return labelsOf('targets_ex', 'density');
@@ -1507,12 +1902,14 @@ function targetLookupConstruction_(size, construction) {
   };
 }
 
-/** The most recent submitted Extrusion PDS for a size, used to source the
- *  layer's OD/ID and screw RPM. */
-function targetFindExtrusionPds_(size, machine) {
+/** The most recent submitted PDS on one form for a size (and optionally one
+ *  line). The department's own record of how the job was actually set up is
+ *  the best source for the run variables, so every model that has a matching
+ *  form resolves through here rather than growing its own copy. */
+function targetFindDeptPds_(tabKey, size, machine) {
   let rows;
   try {
-    rows = getPdsRecords('pds_extrusion', {});
+    rows = getPdsRecords(tabKey, {});
   } catch (e) { return null; }
   const wantSize = targetNormSize_(size);
   const candidates = rows.filter(r => targetNormSize_(r.size) === wantSize
@@ -1520,6 +1917,59 @@ function targetFindExtrusionPds_(size, machine) {
   if (!candidates.length) return null;
   candidates.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   return candidates[0];
+}
+
+/** The most recent submitted Extrusion PDS for a size, used to source the
+ *  layer's OD/ID and screw RPM. */
+function targetFindExtrusionPds_(size, machine) {
+  return targetFindDeptPds_('pds_extrusion', size, machine);
+}
+
+/** Which PDS block on the Screening & Armouring form records each head.
+ *  The form's three tape blocks and two wire cages ARE the heads, in order. */
+const TARGET_SC_HEAD_BLOCK_ = {
+  'Head 1': 'tape1',
+  'Head 2': 'tape2',
+  'Head 3': 'tape3',
+  'Wire Cage': 'wireCage',
+  'Wire Cage 2': 'wireCage2'
+};
+
+/** One cell of an Actual/Tds block table, taking the actual reading first and
+ *  the TDS value as the documented fallback - the same precedence the rest of
+ *  the app uses, so "which number did it take" means one thing everywhere.
+ *  Unlike targetSplitActualTds_ these are two separate cells, not one
+ *  "actual / tds" string. */
+function targetScPdsCell_(pds, blockKey, colKey) {
+  if (!pds) return { value: null, basis: null };
+  const actual = targetNum_(pds[blockKey + '_actual_' + colKey]);
+  if (actual !== null) return { value: actual, basis: 'Actual' };
+  const tds = targetNum_(pds[blockKey + '_tds_' + colKey]);
+  if (tds !== null) return { value: tds, basis: 'TDS' };
+  return { value: null, basis: null };
+}
+
+/** Same, for a cell holding text rather than a number. */
+function targetScPdsText_(pds, blockKey, colKey) {
+  if (!pds) return '';
+  const actual = String(pds[blockKey + '_actual_' + colKey] || '').trim();
+  if (actual) return actual;
+  return String(pds[blockKey + '_tds_' + colKey] || '').trim();
+}
+
+/** Whether a tape on this line is laid overlapped or gapped.
+ *
+ *  The PDS records one "Overlap/Gap %" column without saying which it is, so
+ *  the sign has to come from somewhere. The plant's own sheets settle it by
+ *  family: the copper-tape and copper-wire sheets subtract an overlap, the
+ *  steel-tape sheet adds a gap. That is a starting value the engineer can
+ *  change on the form, not a fact - which is why it is returned with a
+ *  provenance line saying where it came from. */
+function targetScDefaultApplication_(machine) {
+  const m = String(machine || '').trim().toUpperCase();
+  if (/^CT|^CW/.test(m)) return 'Overlap';
+  if (/^ST|^DT/.test(m)) return 'Gap';
+  return null;
 }
 
 /** Actual reading first, TDS as the documented fallback - the same precedence
@@ -1550,7 +2000,7 @@ function resolveTargetInputs(modelKey, workOrder, current) {
   if (!plan || !plan.found) {
     return {
       found: false,
-      error: (plan && plan.error) || 'Work order not found in the active master plan.',
+      error: (plan && plan.error) || 'Work order not found in any uploaded master plan.',
       values: {}, provenance: {}, unresolved: []
     };
   }
@@ -1558,6 +2008,10 @@ function resolveTargetInputs(modelKey, workOrder, current) {
   const values = {};
   const provenance = {};
   const unresolved = [];
+  // Things the engineer should read but that did not stop a field being
+  // filled - the client shows these above the form. `unresolved` is for what
+  // is missing; this is for what is present but worth a second look.
+  const warnings = [];
   const planTag = 'Master plan ' + (plan.month || '') + ', W.O. ' + workOrder;
 
   if (plan.conductorMaterial) {
@@ -1584,7 +2038,7 @@ function resolveTargetInputs(modelKey, workOrder, current) {
   // Which line actually ran this order, from the daily WIP003 export. This is
   // the only source in the app that knows; the master plan says what to make,
   // not what it ran on.
-  const wip = targetWipRun_(workOrder, model.deptName);
+  const wip = targetWipRun_(workOrder, model.wipDepts || model.deptName);
   if (wip && wip.machine) {
     values.machine = wip.machine;
     provenance.machine = 'WIP003 ' + wip.date + ', ' + (wip.operationName || wip.oprCode);
@@ -1725,6 +2179,121 @@ function resolveTargetInputs(modelKey, workOrder, current) {
     }
   }
 
+  if (modelKey === 'targets_sc') {
+    // Which of the two stages ran. The operation map already splits these
+    // runs into Screening and Armouring, so the WIP003 row says it outright;
+    // the machine family is the fallback for an order with no run logged yet.
+    if (wip && (wip.dept === 'Screening' || wip.dept === 'Armouring')) {
+      values.stage = wip.dept === 'Armouring' ? 'Armouring' : 'Metallic Screen';
+      provenance.stage = 'WIP003 ' + wip.date + ', operation ' + wip.oprCode + ' (' + wip.dept + ')';
+    } else if (values.machine) {
+      const m = String(values.machine).toUpperCase();
+      if (/^CT|^CW/.test(m)) { values.stage = 'Metallic Screen'; provenance.stage = 'Machine family ' + m; }
+      else if (/^ST|^DT/.test(m)) { values.stage = 'Armouring'; provenance.stage = 'Machine family ' + m; }
+    }
+
+    const lineHeads = targetScDefaultHeads_(values.machine);
+    const pds = targetFindDeptPds_('pds_screening_armouring', plan.size, values.machine);
+    const tag = pds ? ('PDS ' + (pds.pdsCode || pds.recordId || '') + (pds.date ? ', ' + pds.date : '')) : '';
+
+    // A head counts as running when the run's own PDS has tape or wire data
+    // against it - that is the record of what the line was actually set up to
+    // do. With no PDS to go on, fall back to the heads the line carries and
+    // let the engineer uncheck the ones that were idle.
+    const withData = pds
+      ? lineHeads.filter(h => {
+          const b = TARGET_SC_HEAD_BLOCK_[h];
+          if (!b) return false;
+          return targetScPdsCell_(pds, b, 'tapeWidth').value !== null
+            || targetScPdsCell_(pds, b, 'layLength').value !== null;
+        })
+      : [];
+    const heads = withData.length ? withData : lineHeads;
+
+    if (heads.length) {
+      values.heads = heads;
+      provenance.heads = withData.length
+        ? tag + ' (the heads with data on that record)'
+        : 'Screening > Heads for ' + values.machine;
+    } else if (values.machine) {
+      unresolved.push('Heads In Use (no rows for ' + values.machine + ' in Screening > Heads)');
+    }
+
+    const defaultApplication = targetScDefaultApplication_(values.machine);
+    values.byHead = values.byHead || {};
+
+    heads.forEach(head => {
+      const block = TARGET_SC_HEAD_BLOCK_[head];
+      const fields = {};
+      const prov = (key, text) => { provenance['byHead.' + head + '.' + key] = text; };
+
+      const type = targetScHeadType_(values.machine, head) ||
+        (/cage/i.test(head) ? 'Wire Cage' : 'Tape');
+      fields.elementType = type;
+      prov('elementType', 'Screening > Heads');
+
+      // Nothing in the app records a per-head process, so it is set from the
+      // evidence that the head was working at all rather than defaulted.
+      if (withData.length) {
+        fields.process = 'Taping';
+        prov('process', tag + ' (that block has data)');
+      }
+
+      if (block && pds) {
+        const rpm = targetScPdsCell_(pds, block, 'rpm');
+        if (rpm.value !== null) { fields.rpm = rpm.value; prov('rpm', tag + ' (' + rpm.basis + ')'); }
+
+        const lay = targetScPdsCell_(pds, block, 'layLength');
+        if (lay.value !== null) { fields.layLength = lay.value; prov('layLength', tag + ' (' + lay.basis + ')'); }
+
+        if (/cage/i.test(type)) {
+          if (lay.value === null) unresolved.push('Lay Length for ' + head);
+        } else {
+          const dia = targetScPdsCell_(pds, block, 'cableDiaBefore');
+          if (dia.value !== null) { fields.diaBefore = dia.value; prov('diaBefore', tag + ' (' + dia.basis + ')'); }
+          else unresolved.push('Cable Dia Before for ' + head);
+
+          const width = targetScPdsCell_(pds, block, 'tapeWidth');
+          if (width.value !== null) { fields.tapeWidth = width.value; prov('tapeWidth', tag + ' (' + width.basis + ')'); }
+          else unresolved.push('Tape Width for ' + head);
+
+          const pct = targetScPdsCell_(pds, block, 'overlapPct');
+          if (pct.value !== null) { fields.overlapGapPct = pct.value; prov('overlapGapPct', tag + ' (' + pct.basis + ')'); }
+          else unresolved.push('Overlap / Gap % for ' + head);
+
+          const tapes = targetScPdsCell_(pds, block, 'noOfTapes');
+          if (tapes.value !== null) { fields.noOfTapes = tapes.value; prov('noOfTapes', tag + ' (' + tapes.basis + ')'); }
+
+          const mat = targetScPdsText_(pds, block, 'tapeMaterial');
+          if (mat) { fields.tapeMaterial = mat; prov('tapeMaterial', tag); }
+
+          if (defaultApplication) {
+            fields.application = defaultApplication;
+            prov('application', 'Machine family ' + String(values.machine).toUpperCase() +
+              ' - the PDS records one Overlap/Gap % without saying which. Change it if this run was the other way.');
+          } else {
+            unresolved.push('Applied With (overlap or gap) for ' + head);
+          }
+        }
+      } else {
+        if (defaultApplication && !/cage/i.test(type)) {
+          fields.application = defaultApplication;
+          prov('application', 'Machine family ' + String(values.machine || '').toUpperCase());
+        }
+        unresolved.push((/cage/i.test(type) ? 'Lay Length' : 'Tape geometry') + ' for ' + head +
+          ' (no Screening & Armouring PDS for this size yet)');
+      }
+
+      values.byHead[head] = fields;
+    });
+
+    if (!pds && heads.length) {
+      warnings.push('No Screening & Armouring PDS was found for size ' + (plan.size || '') +
+        ', so every head\'s geometry has to be typed. The line\'s planned Max RPM from ' +
+        'Screening > Heads will be used for any head left without one.');
+    }
+  }
+
   return {
     found: true,
     order: {
@@ -1735,6 +2304,7 @@ function resolveTargetInputs(modelKey, workOrder, current) {
     values: values,
     provenance: provenance,
     unresolved: unresolved,
+    warnings: warnings,
     // The whole TDS bill of materials, for the reference panel. Read-only:
     // its per-stage kg/km are NOT fed into any calculation yet, because which
     // variant a single run covers is still an open question.
@@ -1756,7 +2326,10 @@ function resolveTargetInputs(modelKey, workOrder, current) {
 function setupTargetTabs() {
   const wanted = [
     { deptId: 'D1', tabName: 'Target Time', tabKey: 'targets_dr', order: 15 },
-    { deptId: 'D4', tabName: 'Target Time', tabKey: 'targets_ex', order: 15 }
+    { deptId: 'D4', tabName: 'Target Time', tabKey: 'targets_ex', order: 15 },
+    // Screening and Armouring share one department page, so one tab serves
+    // both - the model tells them apart by the Stage selector.
+    { deptId: 'D5', tabName: 'Target Time', tabKey: 'targets_sc', order: 15 }
   ];
   const existing = sheetToObjects_(SHEETS.TABS);
   const created = [];

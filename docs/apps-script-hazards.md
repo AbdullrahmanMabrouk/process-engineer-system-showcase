@@ -1,8 +1,19 @@
 # Four ways the platform corrupted correct code
 
-Google Apps Script serves an HTML page by handing `HtmlService` a string. What
-the browser receives is not always what you wrote. Over the life of this
-project, four separate transformations silently mangled valid code on its way
+> **Historical.** These four hazards belong to the Apps Script era. The
+> application now serves its frontend from Cloudflare Pages, which returns the
+> file byte for byte, so none of them can happen any more. The codebase still
+> follows the conventions they forced - there is no reason to introduce the
+> inconsistency - but they are style now, not landmines, and a failure should
+> not be diagnosed as one of them.
+>
+> It stays in the showcase because it is the clearest thing I have about how I
+> debug, and because the general lesson outlived the platform. See
+> [the migration](migration.md) for how the app got off it.
+
+Google Apps Script served an HTML page by handing `HtmlService` a string. What
+the browser received was not always what you wrote. Over the life of that
+build, four separate transformations silently mangled valid code on its way
 out, and each one took down the **entire application, including login**.
 
 They share a signature that makes them unusually nasty:
@@ -13,7 +24,7 @@ They share a signature that makes them unusually nasty:
 
 The client is a single inline `<script>` block. Corrupt it anywhere and every
 function in it becomes undefined at once. The login handler is in that block.
-So the failure always presents identically - "the app is stuck on login" -
+So the failure always presented identically - "the app is stuck on login" -
 regardless of which of the four caused it, and regardless of where.
 
 This document is the accumulated result of debugging that four times.
@@ -144,10 +155,19 @@ The general lesson is not about Apps Script. It is that **your build artefact
 is what ships, not what you wrote**, and any transformation between the two is
 part of your system whether you chose it or not.
 
-Three of these four are invisible to every local check, because every local
-check validates the wrong file. Once that was clear, the fix was not smarter
-local linting - it was a way to read the served output, plus cheap conservative
-rules that make the dangerous constructs impossible to write by accident.
+Three of these four were invisible to every local check, because every local
+check validated the wrong file. Once that was clear, the fix was not smarter
+local linting - it was a way to read the served output, plus cheap
+conservative rules that made the dangerous constructs impossible to write by
+accident.
 
-All four rules, and the exact commands, live in the deployment's contributor
-notes where the next person will actually hit them.
+The sequel is worth noting, because it says the lesson did not transfer for
+free. The Worker that replaced this platform has its own version of the same
+trap: `node --check` on `src/index.js` passes on code the Workers runtime
+rejects, because the file is an ES module and `--check` parses it as a script.
+The check that works is to copy it to `.mjs` first. Different platform, same
+shape of mistake - **validating a file that is not the one that runs.**
+
+The one rule that survived unchanged is the error banner. It is still the
+first thing in the client script, and it is still the only reason a
+client-side failure presents as a message rather than a hang.

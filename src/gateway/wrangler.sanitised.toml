@@ -1,0 +1,101 @@
+# ============================================================
+# WORKER CONFIG - sanitised
+# ------------------------------------------------------------
+# Real identifiers replaced with REPLACE_WITH_ placeholders.
+# Everything else is verbatim, including the comments, which are
+# the reason this file is in the showcase at all: most of what is
+# written down here is a thing that broke once.
+# ============================================================
+
+name = "REPLACE_WITH_YOUR_WORKER_NAME"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+# Phase 1 gateway target: the Apps Script deployment carrying the JSON
+# dispatcher (doPost). Declared here rather than set in the dashboard
+# because `wrangler deploy` resets dashboard-set plain vars - secrets
+# survive, plain vars do not - so this is its only durable home.
+#
+# Not a secret: the web app is ANYONE_ANONYMOUS, and knowing the URL
+# grants nothing without a valid session token.
+#
+# Points at a THROWAWAY deployment (@274), NOT production. Production
+# (...b7w) still predates doPost; repointing this at it is a Phase 3
+# decision, not a Phase 1 one.
+[vars]
+# The Drive folder holding PDS photos. NOT a secret - it is just a folder
+# id, and it grants nothing without the service-account key. It lives here
+# rather than in the dashboard for the same reason APPS_SCRIPT_URL does:
+# `wrangler deploy` RESETS dashboard-set plain vars, so a value set there
+# survives only until the next push. Secrets survive; plain vars do not.
+# That is exactly how this got set and then silently lost once already.
+GOOGLE_PHOTO_FOLDER_ID = "REPLACE_WITH_YOUR_DRIVE_FOLDER_ID"
+
+APPS_SCRIPT_URL = "REPLACE_WITH_YOUR_APPS_SCRIPT_EXEC_URL"
+
+# Which origins may read gateway responses. Unset would mean '*', which the
+# session-token requirement makes tolerable but is worth narrowing anyway.
+#
+# NOTE: this is the PRODUCTION Pages origin only. Pages gives every preview
+# deployment its own subdomain (<hash>.YOUR-PROJECT.pages.dev), and
+# those are NOT covered - a preview build calling the gateway will be
+# blocked by CORS until its origin is added here. That is the intended
+# trade: predictable production, explicit opt-in for previews.
+ALLOWED_ORIGINS = "REPLACE_WITH_YOUR_PAGES_ORIGIN"
+
+# D1 replaces the previous Hyperdrive + CockroachDB pair. It is a binding on
+# this Worker rather than an external host, so there is no separate database
+# network hop, no connection-pooling layer, and no payment method required.
+# nodejs_compat was only needed for the `pg` driver and is gone with it.
+[[d1_databases]]
+binding = "DB"
+database_name = "erp-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# R2 bucket for shop-floor photos.
+#
+# COMMENTED OUT ON PURPOSE. This Worker auto-deploys on push to main, and
+# a binding naming a bucket that does not exist fails `wrangler deploy` -
+# which would block every subsequent deploy, not just this feature.
+#
+# The code already handles the binding being absent: /photo returns
+# NO_BUCKET rather than throwing, so shipping this file ahead of the
+# bucket is inert, not broken.
+#
+# To turn photos on, in this order:
+#   1. Enable R2 in the Cloudflare dashboard (one-time; requires accepting
+#      R2 terms and a payment method on file - the free tier then covers
+#      10 GB storage / 1M writes / 10M reads per month).
+#   2. Create a bucket named exactly "erp-photos".
+#   3. Uncomment the two lines below and push.
+#   4. Run the migration op to apply 009_photos.
+#
+# [[r2_buckets]]
+# binding = "PHOTOS"
+# bucket_name = "erp-photos"
+
+# Workers AI, for transcribing voice notes (Whisper). Unlike R2 this needs
+# nothing created or enabled first - the binding is all there is - so it
+# cannot fail a deploy the way a missing bucket would.
+#
+# Free plan: 10,000 neurons a day, about 214 minutes of Whisper audio.
+# Past that, calls FAIL until 00:00 UTC rather than billing; the handler
+# keeps the recording and says the allowance is used up.
+[ai]
+binding = "AI"
+
+# Keeps the photo writer warm during plant hours.
+#
+# Apps Script spins a deployment down when idle and pays the startup cost
+# on the next hit - measured at 9.2s cold against well under a second
+# warm, which is the whole difference between "slow" and "fine" for an
+# upload. A cheap GET every few minutes keeps an instance up.
+#
+# UTC, so 04-16 is roughly 06:00-19:00 in Cairo. Deliberately not 24/7:
+# warming a script nobody is using buys nothing.
+[triggers]
+# 03-17 UTC. Cron is UTC and Egypt moves between UTC+2 and UTC+3, so the
+# local window shifts by an hour twice a year - widened rather than tuned
+# so the 07:30 shift start is warm under both, with margin for an early
+# arrival. Warming outside plant hours buys nothing, hence not 24/7.
+crons = ["*/3 3-17 * * *"]

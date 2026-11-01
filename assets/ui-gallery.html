@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Process Engineer System - UI gallery</title>
+<!--
+  WHAT THIS IS
+  ============
+  The screenshots in this repository are taken from this file, not from the
+  production application, because every screen of the real thing is full of
+  live work orders, machine codes, TDS numbers and the names of the engineers
+  who filed each record.
+
+  app.css is the production stylesheet, byte for byte - 106KB of it, including
+  the OKLCH token system and every component class. The markup below is the
+  shape the renderer emits. All data is synthetic.
+
+  So: real styling, real layout, invented numbers. Open it and you see what an
+  engineer sees, minus anything that belongs to the plant.
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<style>
+  body { background: var(--page-bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; margin: 0; }
+  .shot { max-width: 1180px; margin: 0 auto 34px; }
+  .shot-label { font-family: "Barlow Semi Condensed", sans-serif; font-weight: 800;
+    font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-soft); padding: 22px 4px 8px; }
+  .shot-note { font-size: 12.5px; color: var(--ink-soft); padding: 0 4px 12px; max-width: 70ch; }
+  .vgrid { border-collapse: collapse; font-size: 12px; width: 100%; }
+  .vgrid th, .vgrid td { border: 1px solid var(--border-c); padding: 5px 8px; text-align: center; }
+  .vgrid th { background: oklch(96% 0.01 70); font-weight: 600; }
+  .vgrid td.rowhead, .vgrid th.rowhead { text-align: left; font-weight: 600; background: oklch(97.5% 0.008 70); white-space: nowrap; }
+  .legend { display: flex; gap: 18px; align-items: center; font-size: 12px; color: var(--ink-soft); padding: 9px 2px 0; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 13px; height: 13px; border: 1px solid var(--border-c); vertical-align: -2px; margin-right: 6px; }
+  .synthetic { background: var(--warn-bg); color: var(--warn-text); font-size: 11.5px;
+    font-weight: 700; padding: 3px 9px; border-radius: 999px; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+
+<div style="background:var(--shell-navy); color:#fff; padding:13px 22px; display:flex; align-items:center; gap:12px;">
+  <div style="width:30px;height:30px;border-radius:7px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:'Barlow Semi Condensed',sans-serif;font-weight:800;">PE</div>
+  <span style="font-family:'Barlow Semi Condensed',sans-serif;font-weight:800;font-size:15px;letter-spacing:.02em;">
+    PROCESS ENGINEER SYSTEM
+    <span style="font-weight:500;opacity:.72;">&nbsp;/ UI gallery</span>
+  </span>
+  <span style="flex:1"></span>
+  <span class="synthetic">SYNTHETIC DATA</span>
+</div>
+
+<div style="padding:26px 22px 60px;">
+
+  <!-- ============ 1. STRANDING CAGE GRID ============ -->
+  <div class="shot">
+    <div class="shot-label">1 &middot; Stranding PDS - the repeating cage grid</div>
+    <div class="shot-note">
+      The hardest layout in the application, and the one that forced four of the
+      renderer's generic capabilities. Four cages repeat across the page. The
+      centre wire is <em>one</em> wire, so it sits in its own column in the middle
+      rather than repeating. Line speed and next process are one value for the
+      whole machine, so they span all four. Tape dimension is one field holding
+      two numbers.
+    </div>
+    <div class="en-card" style="padding:0; overflow:hidden;">
+      <div class="pds-card-header" style="padding:12px 16px;">
+        <strong style="font-family:'Barlow Semi Condensed',sans-serif; font-size:16px;">PDS - Stranding</strong>
+        <span style="color:rgba(255,255,255,.88); font-size:12.5px;">&nbsp; RS01 &middot; 630 mm&sup2; &middot; WO-SYN-0412</span>
+      </div>
+      <div style="padding:14px 16px;">
+        <table class="vgrid">
+          <thead>
+            <tr>
+              <th class="rowhead" rowspan="2" style="min-width:180px;">Field</th>
+              <th>CAGE 6</th><th>CAGE 12</th>
+              <th style="background:oklch(94% 0.03 250);">Centre wire</th>
+              <th>CAGE 18</th><th>CAGE 24</th>
+            </tr>
+            <tr>
+              <th style="font-weight:400;color:var(--ink-softer);">6 wires</th>
+              <th style="font-weight:400;color:var(--ink-softer);">12 wires</th>
+              <th style="font-weight:400;color:var(--ink-softer);background:oklch(94% 0.03 250);">1</th>
+              <th style="font-weight:400;color:var(--ink-softer);">18 wires</th>
+              <th style="font-weight:400;color:var(--ink-softer);">24 wires</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="rowhead">No. of Wires</td><td>6</td><td>12</td><td style="background:oklch(97% 0.02 250);">1</td><td>18</td><td>24</td></tr>
+            <tr><td class="rowhead">Wire Diameter (mm)</td><td>3.45</td><td>3.45</td><td style="background:oklch(97% 0.02 250);">3.45</td><td>3.45</td><td>3.45</td></tr>
+            <tr><td class="rowhead">M/C Lay-Length (mm)</td><td>118</td><td>172</td><td style="background:oklch(97% 0.02 250);">&ndash;</td><td>232</td><td>295</td></tr>
+            <tr><td class="rowhead">Lay-Direction</td><td>Left</td><td>Right</td><td style="background:oklch(97% 0.02 250);">&ndash;</td><td>Left</td><td>Right</td></tr>
+            <tr><td class="rowhead">Prespiral Length (mm)</td><td>62</td><td>62</td><td style="background:oklch(97% 0.02 250);">&ndash;</td><td>74</td><td>74</td></tr>
+            <tr><td class="rowhead">Die Dimension (mm)</td><td>14.6</td><td>21.4</td><td style="background:oklch(97% 0.02 250);">&ndash;</td><td>28.1</td><td>34.8</td></tr>
+            <tr>
+              <td class="rowhead">Tape Dimension (mm) <span style="color:var(--ink-softer);font-weight:400;">W / T</span></td>
+              <td>60 / 0.12</td><td>60 / 0.12</td>
+              <td style="background:oklch(97% 0.02 250);">&ndash;</td>
+              <td>80 / 0.12</td><td>80 / 0.12</td>
+            </tr>
+            <tr>
+              <td class="rowhead">Tension % <span style="color:var(--ink-softer);font-weight:400;">S / E</span></td>
+              <td>35 / 40</td><td>35 / 40</td>
+              <td style="background:oklch(97% 0.02 250);">&ndash;</td>
+              <td>40 / 45</td><td>40 / 45</td>
+            </tr>
+            <tr>
+              <td class="rowhead">Line Speed (m/min)</td>
+              <td colspan="5" style="background:oklch(96.5% 0.014 145); font-weight:600;">
+                11.5 &nbsp;<span style="font-weight:400;color:var(--ink-soft);font-size:11.5px;">(one value for the machine &mdash; mergedCageFields)</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="rowhead">Next Process</td>
+              <td colspan="5" style="background:oklch(96.5% 0.014 145); font-weight:600;">Insulation (EX03)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2. ZONE MATRIX + VARIANCE ============ -->
+  <div class="shot">
+    <div class="shot-label">2 &middot; CV insulation - extruder zone matrix with variance colouring</div>
+    <div class="shot-note">
+      Three extruders, each a ten-zone temperature profile recorded as set
+      against actual. The colouring is the point: a cell flags only once it
+      drifts past the block's tolerance, which for a temperature profile is
+      &plusmn;5&deg;. Below set reads blue, above set reads red, within tolerance
+      stays plain. The same function colours the live form, the record list and
+      the printed sheet, so all three agree.
+    </div>
+    <div class="en-card" style="padding:0; overflow:hidden;">
+      <div class="pds-card-header" style="padding:12px 16px;">
+        <strong style="font-family:'Barlow Semi Condensed',sans-serif; font-size:16px;">PDS - CV</strong>
+        <span style="color:rgba(255,255,255,.88); font-size:12.5px;">&nbsp; CCV02 &middot; 33 kV &middot; WO-SYN-0188</span>
+      </div>
+      <div style="padding:14px 16px;">
+        <h3 class="pds-section-head">INS Extruder 2 &nbsp;<span style="font-weight:400;font-size:12px;color:var(--ink-soft);">tolerance &plusmn;5</span></h3>
+        <table class="vgrid">
+          <thead><tr>
+            <th class="rowhead" style="min-width:74px;"></th>
+            <th>Z1</th><th>Z2</th><th>Z3</th><th>Z4</th><th>Z5</th>
+            <th>Z6</th><th>Z7</th><th>Z8</th><th>Z9</th><th>Z10</th>
+            <th>H1</th><th>H2</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="rowhead">Set</td>
+              <td>120</td><td>130</td><td>140</td><td>145</td><td>150</td>
+              <td>155</td><td>158</td><td>160</td><td>160</td><td>162</td>
+              <td>165</td><td>165</td></tr>
+            <tr><td class="rowhead">Actual</td>
+              <td>121</td><td>128</td>
+              <td style="background:#fee2e2;">151</td>
+              <td>147</td><td>148</td>
+              <td style="background:#dbeafe;">146</td>
+              <td>159</td><td>162</td><td>158</td>
+              <td style="background:#fee2e2;">174</td>
+              <td>164</td><td>167</td></tr>
+          </tbody>
+        </table>
+        <div class="legend">
+          <span><i style="background:#dbeafe;"></i>below set, outside tolerance</span>
+          <span><i style="background:#fee2e2;"></i>above set, outside tolerance</span>
+          <span><i style="background:#fff;"></i>within &plusmn;5, not flagged</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3. TARGET TIME TRACE ============ -->
+  <div class="shot">
+    <div class="shot-label">3 &middot; Target time - every number traced to its source</div>
+    <div class="shot-note">
+      "How long should one kilometre take on this line?" Each constant shows
+      where it came from in the real world, and each is editable in place. Note
+      the last row: a missing reference value is reported as unavailable and
+      named, never defaulted to zero. The total then reports as unavailable too
+      rather than as a confident wrong number.
+    </div>
+    <div class="en-card" style="padding:16px;">
+      <table class="vgrid" style="text-align:left;">
+        <thead><tr>
+          <th class="rowhead">Step</th><th class="rowhead">Value</th><th class="rowhead">From</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="rowhead">Wire diameter</td><td class="rowhead">3.45 mm</td><td class="rowhead" style="color:var(--ink-soft);font-weight:400;">PDS record</td></tr>
+          <tr><td class="rowhead">Line speed at this size</td><td class="rowhead">11.5 m/min</td><td class="rowhead" style="color:var(--ink-soft);font-weight:400;">die schedule, interpolated</td></tr>
+          <tr><td class="rowhead">Drum capacity</td><td class="rowhead">2,140 m</td><td class="rowhead" style="color:var(--ink-soft);font-weight:400;">drum register (packing-limited)</td></tr>
+          <tr><td class="rowhead">Drum changes per km</td><td class="rowhead">0.47</td><td class="rowhead" style="color:var(--ink-soft);font-weight:400;">computed</td></tr>
+          <tr><td class="rowhead">Change time</td><td class="rowhead">18 min</td><td class="rowhead" style="color:var(--ink-soft);font-weight:400;">reference table</td></tr>
+          <tr style="background:var(--warn-bg);">
+            <td class="rowhead" style="background:transparent;">Prespiral set-up time</td>
+            <td class="rowhead" style="background:transparent;color:var(--warn-text);">not available</td>
+            <td class="rowhead" style="background:transparent;color:var(--warn-text);font-weight:400;">reference table is blank</td></tr>
+          <tr style="background:oklch(96% 0.01 70);">
+            <td class="rowhead" style="background:transparent;">Target, per km</td>
+            <td class="rowhead" style="background:transparent;color:var(--warn-text);">unavailable</td>
+            <td class="rowhead" style="background:transparent;color:var(--ink-soft);font-weight:400;">1 constant missing</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============ 4. COVERAGE ============ -->
+  <div class="shot">
+    <div class="shot-label">4 &middot; Shift coverage - what was actually recorded</div>
+    <div class="shot-note">
+      Per department, how much of what ran has a process data sheet behind it.
+      The three-way split is load-bearing and deliberately not rounded into a
+      single percentage: "no PDS" and "ran, but we cannot tell" are different
+      problems with different owners.
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(224px,1fr)); gap:13px;">
+      <div class="en-card" style="padding:15px;">
+        <div style="font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Stranding</div>
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:33px;font-weight:800;line-height:1.1;">88%</div>
+        <div style="font-size:12px;color:var(--ink-soft);">44 of 50 runs covered</div>
+        <div style="margin-top:9px;height:7px;border-radius:4px;overflow:hidden;display:flex;">
+          <span style="width:88%;background:var(--success);"></span>
+          <span style="width:8%;background:var(--mid);"></span>
+          <span style="width:4%;background:var(--danger);"></span>
+        </div>
+      </div>
+      <div class="en-card" style="padding:15px;">
+        <div style="font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Extrusion</div>
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:33px;font-weight:800;line-height:1.1;">71%</div>
+        <div style="font-size:12px;color:var(--ink-soft);">52 of 73 runs covered</div>
+        <div style="margin-top:9px;height:7px;border-radius:4px;overflow:hidden;display:flex;">
+          <span style="width:71%;background:var(--success);"></span>
+          <span style="width:19%;background:var(--mid);"></span>
+          <span style="width:10%;background:var(--danger);"></span>
+        </div>
+      </div>
+      <div class="en-card" style="padding:15px;">
+        <div style="font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">CV</div>
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:33px;font-weight:800;line-height:1.1;">94%</div>
+        <div style="font-size:12px;color:var(--ink-soft);">16 of 17 runs covered</div>
+        <div style="margin-top:9px;height:7px;border-radius:4px;overflow:hidden;display:flex;">
+          <span style="width:94%;background:var(--success);"></span>
+          <span style="width:6%;background:var(--mid);"></span>
+        </div>
+      </div>
+      <div class="en-card" style="padding:15px;">
+        <div style="font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Bleeding</div>
+        <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:33px;font-weight:800;line-height:1.1;color:var(--ink-softer);">&ndash;</div>
+        <div style="font-size:12px;color:var(--ink-soft);">not tracked yet</div>
+        <div style="margin-top:9px;height:7px;border-radius:4px;background:repeating-linear-gradient(45deg,var(--border-c),var(--border-c) 4px,transparent 4px,transparent 8px);"></div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--success);border:none;"></i>covered by a submitted PDS</span>
+      <span><i style="background:var(--mid);border:none;"></i>ran, no PDS matched</span>
+      <span><i style="background:var(--danger);border:none;"></i>no production record at all</span>
+      <span><i style="background:repeating-linear-gradient(45deg,var(--border-c),var(--border-c) 3px,transparent 3px,transparent 6px);border:none;"></i>no backing data - shown as a gap, never as a number</span>
+    </div>
+  </div>
+
+</div>
+<script>
+(function(){
+  var h=(location.hash||"").replace("#","");
+  if(!/^s[1-9]$/.test(h)) return;
+  var n=+h.slice(1), shots=document.querySelectorAll(".shot");
+  shots.forEach(function(el,i){ if(i!==n-1) el.remove(); });
+  document.body.lastElementChild.style.paddingBottom="18px";
+})();
+</script>
+</body>
+</html>
