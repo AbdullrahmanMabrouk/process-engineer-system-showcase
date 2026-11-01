@@ -1,24 +1,69 @@
 # Process Engineer System
 
-A production web application for the process engineering department of a
-cable-manufacturing plant. It replaced the paper and Excel workflow four teams
-used to record what actually happened on the production lines: process data
-sheets, daily shift reports, quality logs, trials, maintenance, workshop
-requests and target times.
+**A production web application I designed and built single-handed for the
+process engineering department of a cable-manufacturing plant, and that its
+engineers use every shift.**
 
-It is in daily use by the plant's engineers.
+It replaced the paper and Excel workflow four teams used to record what
+actually happened on the production lines: process data sheets, daily shift
+reports, quality logs, trials, maintenance, workshop requests and target
+times.
 
-<!-- TODO(you): if you want a date here, add the real one - e.g. "in daily use
-     since March 2026". I left it out rather than guess. -->
+<!-- TODO(you): one line here is worth a lot to a reviewer - e.g. "In daily
+     use by ~N engineers across four departments since March 2026." Fill in
+     the real numbers; I left them out rather than guess. -->
 
-**This repository is a curated, sanitised showcase.** It is not the
-deployment. See [What is and is not here](#what-is-and-is-not-here).
+**This repository is a curated, sanitised showcase built for portfolio
+review.** It is not the deployment, and every number in it is invented. See
+[What is and is not here](#what-is-and-is-not-here).
 
 ![Shift coverage](assets/shot-coverage.png)
 
 ---
 
-## The problem
+## For a reviewer, in sixty seconds
+
+I am a process engineer. Nobody assigned me this; the department needed it,
+there was no infrastructure budget and no admin rights on the workstations, so
+I built it, shipped it, and have kept it running under real load ever since.
+
+That makes it unusual evidence. It is not a tutorial project or a take-home
+exercise. It was specified by the problem rather than by a brief, it has real
+users who tell me when it is wrong, and it has survived a full platform
+migration without a flag day.
+
+Three things I would point at:
+
+| | |
+|---|---|
+| **Abstraction that paid off** | Fourteen visually different process data sheets render from one engine. A new department is a schema entry, not a code path. [Read it](docs/forms-engine.md) |
+| **A migration done without an outage** | Moved off Google Apps Script onto Cloudflare Pages + Workers + D1, one endpoint at a time, while four departments kept using it. 3-18s per call became ~0.05s. [Read it](docs/migration.md) |
+| **Judgement about wrong answers** | The app shows a gap rather than a plausible number, everywhere. A target time a supervisor schedules a shift against is either right or reported as unavailable - never defaulted. [Read it](docs/target-times.md) |
+
+If you have five minutes rather than thirty, read [the parity harness
+write-up](docs/parity-harness.md) instead - it is the shortest thing here and
+the most honest about how I work.
+
+## What this demonstrates
+
+Mapped to what is actually in the repository, so none of it has to be taken on
+trust:
+
+| Claim | Where to check it |
+|---|---|
+| Designing for change rather than for the current requirement | [`schemas.excerpt.js`](src/engine/schemas.excerpt.js) + [`pds-renderer.excerpt.js`](src/frontend/pds-renderer.excerpt.js) - generic capabilities (`centerWireColumn`, `mergedCageFields`, `showIf`, `repeat`) instead of per-department UI |
+| Incremental migration of a system already in use | [`native-map.excerpt.js`](src/gateway/native-map.excerpt.js) - the strangler registry, and `fallbackToAppsScript` making a half-migrated endpoint a normal state |
+| Modelling a physical domain correctly | [`Targets.js`](src/engine/Targets.js), shipped in full - drum packing, die schedules, interpolation that refuses to extrapolate |
+| Testing the failure mode that matters | [`parity_sc.js`](src/tools/parity_sc.js) - two engines diffed step by step, with a zero-coverage assertion added after the harness passed while both were broken |
+| Working inside hard platform constraints | [`api-shim.js`](src/frontend/api-shim.js) - 267 lines that let 54 call sites change runtime unchanged. And [four ways the old platform corrupted correct code](docs/apps-script-hazards.md) |
+| Writing for whoever comes next | These documents. Each one names what went wrong, not only what was built |
+
+Deliberately *not* claimed: this is not a distributed-systems portfolio, there
+is no Kubernetes in it, and the frontend is vanilla JS with no build step
+because that was the right call for one developer supporting a plant - not
+because I have not met React.
+
+## The problem it solves
 
 A cable is built in layers. A copper rod is drawn down to wire, the wires are
 stranded into a conductor, the conductor is insulated, screened, armoured and
@@ -67,8 +112,9 @@ the old system still answering whatever had not moved yet.
 | Endpoints answered at the edge | 149 |
 | D1 migrations | 58, append-only |
 | Latency, before and after | 3-18s forwarded, ~0.05s native |
+| Developers | 1 |
 
-## Four pieces worth reading
+## The four write-ups
 
 **[Moving a live app off Apps Script](docs/migration.md)** - a strangler-fig
 migration with four departments using the thing every shift. Why the platform
@@ -169,6 +215,18 @@ above is that rule, visible.
 clutter left in by accident. It is the only thing that turns a silent
 client-side failure into a visible message instead of a page that never
 finishes loading. Removing it means debugging blind.
+
+## Talking about it
+
+I am happy to walk through any of this - including the parts that went badly,
+of which there are several written down above. If you want the architecture
+argument rather than the code, start with
+[`docs/migration.md`](docs/migration.md); if you want to know how I think
+about correctness, start with
+[`docs/parity-harness.md`](docs/parity-harness.md).
+
+<!-- TODO(you): add however you want to be contacted - email, LinkedIn. I did
+     not want to publish an address you had not chosen to publish. -->
 
 ## Licence
 
